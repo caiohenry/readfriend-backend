@@ -17,8 +17,7 @@ exports.up = function (knex) {
 
         // Data
         table.string('name', 100).notNullable()
-        table.string('cpf', 14).unique().notNullable()
-        table.string('phone', 30)
+        table.string('photo')
         table.boolean('status').notNullable().defaultTo(false)
 
         // Create and update timestamp

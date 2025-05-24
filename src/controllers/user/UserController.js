@@ -2,6 +2,7 @@
 const knex = require('../../database')
 const bcrypt = require('bcrypt')
 
+
 // Controller
 module.exports = {
 
@@ -10,18 +11,39 @@ module.exports = {
 
         try {
 
+            // Get q in the query
+            const { q } = req.query
+
             // Get user - SELECT
             const query = knex.from('users')
-                
-                // Response data - success
-                await query
-                    .select('id', 'name', 'cpf', 'status', 'phone', 'email')
-                    .orderBy('name')
-                    .then((data) => {
-                        res.send({
-                            data
-                        })
+            .whereNot('id', req.user.id)
+            .whereNotIn('id', function () {
+                this.select('friend_id')
+                .from('user_relationship')
+                .where('user_id', req.user.id)
+                .union(function () {
+                    this.select('user_id')
+                    .from('user_relationship')
+                    .where('friend_id', req.user.id);
+                });
+            });
+
+            // Filter name LIKE by q
+            if (q != undefined && !!q) {
+                query.andWhere(function () {
+                    this.orWhereRaw('LOWER(name) LIKE ?', `%${q.toLowerCase()}%`)
                 })
+            }
+                
+            // Response data - success
+            await query
+                .select('id', 'name', 'status', 'email', 'photo')
+                .orderBy('name')
+                .then((data) => {
+                    res.send({
+                        data
+                    })
+            })
 
         } catch (err) {
 
@@ -48,8 +70,6 @@ module.exports = {
                 .select(
                 'id',
                 'name',
-                'cpf',
-                'phone',
                 'email'
                 )
                 .from('users')
@@ -75,8 +95,6 @@ module.exports = {
         // Get body in the request
         const {
             name,
-            cpf,
-            phone,
             email,
             password = "root"
         } = req.body
@@ -87,8 +105,6 @@ module.exports = {
             const [data] = await knex('users')
                 .insert({
                 name,
-                cpf,
-                phone,
                 email,
                 password: bcrypt.hashSync(password, Number(process.env.SALT))
             }).returning('id')
@@ -96,6 +112,48 @@ module.exports = {
             // Response data - success
             res.send({ data, message: 'user.create.ok' })
             next()
+
+        } catch (err) {
+
+            // Response data - error
+            return res.status(400).json({
+                message: 'user.create.nok',
+                detail: {
+                    code: err.code,
+                    message: err.detail,
+                    constraint: err.constraint?.replaceAll('_', '.')
+                }
+            })
+
+        }
+
+    },
+
+    // External Create
+    async externalCreate(req, res, next) {
+
+        // Get body in the request
+        const {
+            name,
+            email,
+            password
+        } = req.body
+
+        const photo = req.file ? req.file.filename : null;
+
+        try {
+
+            // Create data in table - INSERT VALUES
+            const [data] = await knex('users')
+                .insert({
+                name,
+                email,
+                password: bcrypt.hashSync(password, Number(process.env.SALT)),
+                photo
+            }).returning('id')
+
+            // Response data - success
+            res.send({ data, message: 'user.create.ok' })
 
         } catch (err) {
 
@@ -122,8 +180,6 @@ module.exports = {
         // Get body in the request
         const {
             name,
-            cpf,
-            phone,
             email,
             status,
             password
@@ -135,8 +191,6 @@ module.exports = {
             await knex('users')
                 .update({
                     name,
-                    cpf,
-                    phone,
                     email,
                     status,
                     password
