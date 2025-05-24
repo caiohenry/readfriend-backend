@@ -28,9 +28,11 @@ module.exports = {
       // Safety
       if (!user) {
         return res.status(400).json({ message: 'user.notfound' })
-      } else if (!user.status) {
-        return res.status(400).json({ message: 'user.inactive'})
-      }
+      } 
+      
+      // else if (!user.status) {
+      //   return res.status(400).json({ message: 'user.inactive'})
+      // }
 
       // Comparing the provided password with the encrypted registered password
       if (compareSync(password, user.password)) {
@@ -49,11 +51,11 @@ module.exports = {
         })
 
         // Delete token where user ID
-        await knex('token').where({ usuario_id: user.id }).del()
+        await knex('token').where({ user_id: user.id }).del()
 
         // Create data token 
         await knex('token').insert({
-          usuario_id: user.id,
+          user_id: user.id,
           token: refresh_token
         })
 
@@ -70,6 +72,8 @@ module.exports = {
       }
 
     } catch (err) {
+
+      console.log(err)
 
       // Response data - error
       return res.status(400).json({
@@ -198,7 +202,7 @@ module.exports = {
     try {
       
       // Verified token JWT validate
-      req.usuario = jwt.verify(authorization, process.env.TOKEN_SECRET)
+      req.user = jwt.verify(authorization, process.env.TOKEN_SECRET)
 
     } catch (err) {
       
